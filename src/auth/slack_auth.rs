@@ -10,6 +10,7 @@ use bincode;
 
 use reqwest;
 use slack_rust::team::teams::Team;
+use crate::client;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 struct SlackTeam {
@@ -47,9 +48,7 @@ pub struct SlackToken {
 }
 
 async fn get_slack_secrets() -> Box<(str, str, str)> {
-  let port: u16 = std::env::var("DAPR_GRPC_PORT").unwrap().parse().unwrap();
-  let addr = format!("https://127.0.0.1:{}", port);
-  let mut dapr_client: Client::<TonicClient> = dapr::Client::<TonicClient>::connect(addr).await.unwrap();
+  let mut dapr_client = client::dapr_client::create_client().await.unwrap().client.lock().unwrap();
 
   let client_id_secret = &dapr_client.get_secret("dogebot-secret-store", "slackClientId").await.unwrap();
   let client_id = client_id_secret.data.get("slackClientId").expect("unable to fetch client_id from secrets");
@@ -64,11 +63,9 @@ async fn get_slack_secrets() -> Box<(str, str, str)> {
 }
 
 async fn get_token() -> Option<SlackToken> {
-  let port: u16 = std::env::var("DAPR_GRPC_PORT").unwrap().parse().unwrap();
-  let addr = format!("https://127.0.0.1:{}", port);
-  let mut dapr_client: Client::<TonicClient> = dapr::Client::<TonicClient>::connect(addr).await.unwrap();
+  let mut dapr_client = client::dapr_client::create_client().await.unwrap().client.lock().unwrap();
 
-  let token_bytes = dapr_client.get_state("dogebot-state-store", "slack-token", Option::None)
+  let token_bytes = &dapr_client.get_state("dogebot-state-store", "slack-token", Option::None)
     .await
     .unwrap();
 
@@ -99,6 +96,7 @@ pub async fn refresh_token() -> Option<SlackToken> {
     Ok(response) => {
       let token: SlackToken = response.json().await.unwrap();
       let json_token = serde_json::to_string(&token).unwrap();
+      let mut dapr_client = client::dapr_client::create_client().await.unwrap().client.lock().unwrap();
       let state = dapr_client.save_state("dogebot-state-store", vec![("slack-token", String::from(&json_token).into_bytes())]).await;
       Option::Some(token)
     }
@@ -129,6 +127,7 @@ pub async fn exchange_code_for_access_token(code: &str) -> Option<SlackToken> {
     Ok(response) => {
       let token: SlackToken = response.json().await.unwrap();
       let json_token = serde_json::to_string(&token).unwrap();
+      let mut dapr_client = client::dapr_client::create_client().await.unwrap().client.lock().unwrap();
       let state = dapr_client.save_state("dogebot-state-store", vec![("slack-token", String::from(&json_token).into_bytes())]).await;
       Option::Some(token)
     }
