@@ -1,0 +1,8 @@
+/target
+certs/key.pem
+secrets.json
+*.json
+*.iml
+.idea/
+certs/
+target/

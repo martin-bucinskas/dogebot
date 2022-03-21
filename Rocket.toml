@@ -1,0 +1,13 @@
+[debug]
+address = "0.0.0.0"
+port = 8000
+log = "normal"
+
+[prod]
+address = "0.0.0.0"
+port = 80
+log = "normal"
+
+[global.tls]
+certs = "./cert/cert.pem"
+key = "./cert/key.pem"
